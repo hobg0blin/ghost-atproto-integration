@@ -1,0 +1,15 @@
+[Unit]
+Description=Ghost ATProto Integration
+After=network.target
+
+[Service]
+Type=simple
+User=YOUR_USER
+WorkingDirectory=/path/to/ghost-atproto-integration
+EnvironmentFile=/path/to/ghost-atproto-integration/.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
