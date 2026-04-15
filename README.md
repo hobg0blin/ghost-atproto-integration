@@ -18,20 +18,27 @@ pnpm install
 cp .env.example .env
 ```
 
-You'll need:
-- **Ghost Content API key:** Ghost Admin → Settings → Integrations → Add custom integration → Content API key
-- **Ghost Admin API key:** Same integration → Admin API key (format: `id:secret`)
-- **Ghost webhook secret:** You'll set this when creating the webhook (step 6)
-- **ATProto app password:** Your PDS settings panel
+You'll need to create a custom integration:
+-  Ghost Admin → Settings → Integrations → Add custom integration 
 
-### 3. Create publication record (once)
+This should provide you with a content API and admin API key for your environment. Make a local secret to add to your webhooks. 
+
+### 3. Configure Ghost webhook
+**Ghost Admin → Settings → Integrations → your integration → Add webhook**
+- Events: `Post published`, `Post updated`, `Post unpublished`
+- Target URL: `http://localhost:3456` (or wherever the server runs)
+- Secret: same value as `GHOST_WEBHOOK_SECRET` in your `.env`
+
+
+
+### 4. Create publication record (once)
 ```bash
 pnpm run setup
 ```
 Creates your `site.standard.publication` record on your PDS, pulling the blog title and
 description from Ghost automatically. Also prints your DID and a `location = ` block to put in your nginx config .
 
-### 4. Verify your publication
+### 5. Verify your publication
 
 Add a `.well-known` route to your Nginx config so standard.site clients can verify ownership.
 `setup.js` prints the exact config block, but it looks like:
@@ -52,23 +59,17 @@ sudo nginx -t && sudo systemctl reload nginx
 
 Verify at `https:/{YOUR_URL}/.well-known/site.standard.publication`.
 
-### 5. Backfill existing posts (once)
+### 6. Backfill existing posts (once)
 ```bash
 pnpm run backfill
 ```
 Fetches all published Ghost posts (paginated, Ghost 6 compatible) and publishes them to your
 PDS. Safe to re-run — uses slug as rkey, so duplicates just overwrite.
 
-### 6. Start the webhook server
+### 7. Start the webhook server
 ```bash
 npm start
 ```
-
-### 7. Configure Ghost webhook
-**Ghost Admin → Settings → Integrations → your integration → Add webhook**
-- Events: `Post published`, `Post updated`, `Post unpublished`
-- Target URL: `http://localhost:3456` (or wherever the server runs)
-- Secret: same value as `GHOST_WEBHOOK_SECRET` in your `.env`
 
 ### 8. Install as a systemd service (optional but recommended)
 ```bash
