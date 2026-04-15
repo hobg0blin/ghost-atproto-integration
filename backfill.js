@@ -20,17 +20,28 @@ if (!ATP_PDS_URL || !ATP_HANDLE || !ATP_APP_PASSWORD || !GHOST_URL || !GHOST_CON
 }
 
 async function fetchAllPosts() {
-  const url = new URL('/ghost/api/content/posts/', GHOST_URL);
-  url.searchParams.set('key', GHOST_CONTENT_API_KEY);
-  url.searchParams.set('include', 'tags');
-  url.searchParams.set('formats', 'html');
-  url.searchParams.set('limit', 'all');
-  url.searchParams.set('order', 'published_at asc');
+  const allPosts = [];
+  let page = 1;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Ghost API error: ${res.status} ${res.statusText}`);
-  const { posts } = await res.json();
-  return posts;
+  while (true) {
+    const url = new URL('/ghost/api/content/posts/', GHOST_URL);
+    url.searchParams.set('key', GHOST_CONTENT_API_KEY);
+    url.searchParams.set('include', 'tags');
+    url.searchParams.set('formats', 'html');
+    url.searchParams.set('limit', '100');
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('order', 'published_at asc');
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Ghost API error: ${res.status} ${res.statusText}`);
+    const { posts, meta } = await res.json();
+    allPosts.push(...posts);
+
+    if (!meta?.pagination?.next) break;
+    page++;
+  }
+
+  return allPosts;
 }
 
 console.log('Fetching all published Ghost posts...');

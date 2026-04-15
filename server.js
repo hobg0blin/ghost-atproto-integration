@@ -10,10 +10,11 @@ import http from 'http';
 import crypto from 'crypto';
 import { createAgent, publicationUri, putDocument, deleteDocument } from './lib/atproto.js';
 import { buildDocumentRecord } from './lib/convert.js';
+import { injectDocumentLink, removeDocumentLink } from './lib/ghost-admin.js';
 
 const {
   ATP_PDS_URL, ATP_HANDLE, ATP_APP_PASSWORD, ATP_DID,
-  GHOST_WEBHOOK_SECRET,
+  GHOST_URL, GHOST_ADMIN_API_KEY, GHOST_WEBHOOK_SECRET,
   PORT = '3456',
 } = process.env;
 
@@ -59,6 +60,9 @@ async function handleWebhook(event, post) {
 
   if (event === 'post.unpublished') {
     await deleteDocument(agent, slug);
+    if (GHOST_ADMIN_API_KEY && post.id) {
+      await removeDocumentLink(GHOST_URL, GHOST_ADMIN_API_KEY, post.id);
+    }
     console.log(`Deleted: ${slug}`);
     return;
   }
@@ -67,6 +71,12 @@ async function handleWebhook(event, post) {
   const record = buildDocumentRecord(post, pubUri);
   const uri = await putDocument(agent, slug, record);
   console.log(`${event === 'post.published' ? 'Published' : 'Updated'}: ${slug} → ${uri}`);
+
+  // Inject <link> verification tag into the Ghost post
+  if (GHOST_ADMIN_API_KEY && post.id) {
+    await injectDocumentLink(GHOST_URL, GHOST_ADMIN_API_KEY, post.id, uri);
+    console.log(`Injected document link into: ${slug}`);
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -91,21 +101,28 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Ghost event name comes from the X-Ghost-Event header
-  const event = req.headers['x-ghost-event'];
   const post = payload?.post?.current;
-  console.debug('Event:', event, '| Status:', post?.status, '| Slug:', post?.slug);
+  const previous = payload?.post?.previous;
 
-  if (!post || !['post.published', 'post.updated', 'post.unpublished'].includes(event)) {
+  if (!post?.slug) {
     res.writeHead(200).end('Ignored');
     return;
   }
 
-  // Ignore draft autosaves — only process published posts
-  if (event !== 'post.unpublished' && post.status !== 'published') {
+  // Infer event from status transitions
+  let event;
+  if (post.status === 'published' && previous?.status !== 'published') {
+    event = 'post.published';
+  } else if (post.status === 'published' && previous?.status === 'published') {
+    event = 'post.updated';
+  } else if (post.status !== 'published' && previous?.status === 'published') {
+    event = 'post.unpublished';
+  } else {
     res.writeHead(200).end('Ignored');
     return;
   }
+
+  console.log(`${event}: ${post.slug}`);
 
   // Respond immediately so Ghost doesn't time out, then process async
   res.writeHead(200).end('OK');
