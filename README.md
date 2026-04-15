@@ -26,7 +26,7 @@ You'll need:
 
 ### 3. Create publication record (once)
 ```bash
-npm run setup
+pnpm run setup
 ```
 Creates your `site.standard.publication` record on your PDS, pulling the blog title and
 description from Ghost automatically. Also prints your DID and a `location = ` block to put in your nginx config .
@@ -54,7 +54,7 @@ Verify at `https:/{YOUR_URL}/.well-known/site.standard.publication`.
 
 ### 5. Backfill existing posts (once)
 ```bash
-npm run backfill
+pnpm run backfill
 ```
 Fetches all published Ghost posts (paginated, Ghost 6 compatible) and publishes them to your
 PDS. Safe to re-run — uses slug as rkey, so duplicates just overwrite.
